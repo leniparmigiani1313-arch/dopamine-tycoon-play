@@ -1,0 +1,651 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; connect-src https://ntfy.sh 'self'; img-src 'self' data:; manifest-src 'self'; worker-src 'self'; media-src 'self'">
+<title>Dopamine Tycoon</title>
+<!-- Application installable sur téléphone (iPhone : Partager > Sur l'écran d'accueil ; Android : Installer l'application) -->
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#140B1F">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Dopamine">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" type="image/png" href="icons/icon-192.png">
+<link rel="stylesheet" href="fonts/fonts.css">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="loader" class="loader" role="status" aria-live="polite">
+  <div class="ld-logo">DOPAMINE<span>TYCOON</span></div>
+  <div class="ld-bar"><i id="ldBar"></i></div>
+  <p class="ld-txt" id="ldTxt">Chargement…</p>
+</div>
+<canvas id="bg" class="bg" aria-hidden="true"></canvas>
+<div class="vignette" aria-hidden="true"></div>
+
+<!-- ===== Écran de connexion ===== -->
+<section id="auth" class="auth">
+  <div class="auth-card">
+    <div class="logo-stack" aria-label="Dopamine Tycoon">
+      <div class="logo-a glitch" data-text="DOPAMINE">DOPAMINE</div>
+      <div class="logo-b">TYCOON</div>
+    </div>
+    <p class="tagline">Le simulateur d'empire de l'attention. Transforme chaque scroll en dopamine, écrase tes potes au classement, et tente de garder quelques récepteurs en état.</p>
+
+    <div id="resume" class="resume" hidden>
+      <p>Content de te revoir, <b id="resumeName"></b>.</p>
+      <button class="btn-hero" id="resumeBtn" type="button">Jouer</button>
+      <button class="linkbtn" id="switchAcc" type="button">Changer de compte</button>
+    </div>
+
+    <div id="authForms">
+      <div class="seg auth-tabs" role="group" aria-label="Connexion ou inscription">
+        <button type="button" id="tabLogin" aria-pressed="true">Se connecter</button>
+        <button type="button" id="tabSignup" aria-pressed="false">Créer un compte</button>
+      </div>
+      <form id="authForm" class="auth-form" autocomplete="off" novalidate>
+        <label for="fName">Pseudo</label>
+        <input id="fName" maxlength="16" autocomplete="username" spellcheck="false">
+        <label for="fPass">Mot de passe</label>
+        <input id="fPass" type="password" autocomplete="current-password">
+        <div id="confirmWrap" class="auth-form" hidden>
+          <label for="fPass2">Confirme le mot de passe</label>
+          <input id="fPass2" type="password" autocomplete="new-password">
+          <label for="fDif">Difficulté</label>
+          <select id="fDif" class="dif-sel">
+            <option value="0">🌴 Chill : production ×2, pour se détendre</option>
+            <option value="1" selected>Normal : l'expérience prévue</option>
+            <option value="2">🔥 Hardcore : production ÷2, Sérénité ×1,5</option>
+            <option value="3">💀 Cauchemar : production ÷4, Sérénité ×2,5</option>
+          </select>
+        </div>
+        <label class="check"><input type="checkbox" id="fRemember" checked> Rester connecté sur ce PC</label>
+        <button class="btn-hero" id="authSubmit" type="submit">Se connecter</button>
+        <p class="auth-msg" id="authMsg" role="status"></p>
+      </form>
+      <p class="auth-note" id="authNote"></p>
+      <button class="linkbtn" id="authImport" type="button">Importer une partie avec un code de sauvegarde</button>
+    </div>
+  </div>
+</section>
+
+<!-- ===== Jeu ===== -->
+<div id="game" class="game" hidden>
+  <header class="bar">
+    <div class="bar-logo">DOPAMINE<span>TYCOON</span></div>
+    <div class="era-chip" id="eraChip"><span id="eraNum">CHAPITRE I</span><b id="eraName">Le Garage</b></div>
+    <div class="kpis">
+      <div class="kpi main"><span class="lab">Dopamine</span><span class="num big" id="bank">0</span><span class="unit">nmol en banque</span></div>
+      <div class="kpi"><span class="lab">Production</span><span class="num" id="dps">0</span><span class="unit">nmol / s</span></div>
+      <div class="kpi"><span class="lab">Par tap</span><span class="num" id="dpc">1</span><span class="unit">nmol</span></div>
+      <div class="kpi"><span class="lab">Multiplicateur</span><span class="num" id="mult" style="color:var(--gold)">×1</span><span class="unit" id="multd">succès, sérénité, choix</span></div>
+    </div>
+    <div class="player">
+      <span class="av-wrap"><span class="av" id="av">?</span><span class="lvl-badge" id="lvl" title="Niveau">1</span></span>
+      <span class="pinfo"><b id="pname">?</b><small id="prank"></small><span class="xp"><i id="xpBar"></i></span></span>
+      <button class="icon-btn" id="btnHelp" type="button" aria-label="Comment jouer"></button>
+      <button class="icon-btn" id="btnSound" type="button" aria-label="Couper le son"></button>
+      <button class="icon-btn" id="btnSettings" type="button" aria-label="Réglages"></button>
+    </div>
+  </header>
+
+  <div class="ticker" aria-hidden="true"><div class="track" id="ticker"></div></div>
+
+  <main class="grid">
+    <section class="col col-left">
+      <div class="stage" id="stage" role="button" tabindex="0" aria-label="Taper pour faire descendre la presse et éclater le pop-it">
+        <canvas id="cv"></canvas>
+        <div class="hint" id="hint">Tape pour écraser !</div>
+        <div class="buffs" id="buffs"></div>
+        <div class="combo t0" id="combo" hidden><svg class="flame" viewBox="0 0 64 84" aria-hidden="true"><defs><linearGradient id="flameG" x1="0" y1="1" x2="0" y2="0"><stop offset="0" class="f1"/><stop offset=".55" class="f2"/><stop offset="1" class="f3"/></linearGradient></defs><path d="M32 3C36 17 52 25 55 45c3 20-9 36-23 36S6 69 9 50c2-12 9-16 11-27 5 5 6 11 5 16 6-7 9-19 7-36z" fill="url(#flameG)" stroke="#1B1029" stroke-width="4" stroke-linejoin="round"/><path class="fi" d="M32 40c4 8 12 13 12 24 0 7-5 12-12 12s-12-5-12-12c0-6 4-9 6-14 2 3 3 5 3 8 3-5 4-10 3-18z"/></svg><div class="combo-txt"><b id="comboX">×1</b><span id="comboN">COMBO 0</span><em id="comboT"></em></div></div>
+        <div class="rain" id="rain" hidden></div>
+        <div class="emote-show" id="emoteShow"></div>
+        <button class="emote-btn" id="emoteBtn" type="button" aria-label="Envoyer une emote à tes potes" aria-expanded="false"></button>
+        <div class="emote-pal" id="emotePal" hidden></div>
+        <button class="mg-btn" id="megaBtn" type="button" aria-label="Méga-Presse : écrase tout d'un coup quand la jauge est pleine"><span class="mg-in"><span class="mg-liq" id="megaLiq"></span><span class="mg-pct" id="megaPct">0%</span></span><span class="mg-lab">MÉGA-PRESSE !</span></button>
+        <div class="veil" id="veil" hidden>
+          <div><strong>Mode avion</strong><p id="veilText">Tes récepteurs D2 remontent à la surface. Rien n'est produit tant que le mode avion est actif.</p></div>
+        </div>
+      </div>
+
+      <div class="so-chips"><button type="button" class="so-chip" id="soChipDaily">🎯 Défi du jour</button><button type="button" class="so-chip ev" id="soChipEv" hidden></button></div>
+      <div class="fever" id="fever"><span class="fever-lab" id="feverLab">HYPE 0 %</span><div class="fever-track"><i id="feverBar"></i></div></div>
+      <button class="ps-bar" id="passBar" type="button" aria-label="Ouvrir le Pass Dopamine"><span class="ps-bar-lab">PASS DOPAMINE · <b id="passTier">palier 0</b></span><span class="ps-bar-track"><i id="passFill"></i></span><b class="ps-dot" id="passDot" hidden>0</b></button>
+
+      <div class="panel chests">
+        <div class="board-head"><h3>Coffres</h3><span class="unit" id="chestMore"></span></div>
+        <div class="slots" id="chestSlots"></div>
+      </div>
+
+      <div class="panel arcade">
+        <div class="board-head"><h3>Salle de jeux</h3><button class="linkbtn" id="buyTicket" type="button">Acheter un ticket</button></div>
+        <div class="arcade-btns">
+          <button class="arc-btn a-wheel" id="wheelBtn" type="button"><span class="arc-ic wheel-ic" aria-hidden="true"></span><span>Roue</span><b id="wheelBadge" hidden>0</b></button>
+          <button class="arc-btn a-slot" id="slotBtn" type="button"><span class="arc-ic slot-ic" aria-hidden="true">777</span><span>Bandit manchot</span></button>
+          <button class="arc-btn a-scratch" id="scratchBtn" type="button"><span class="arc-ic ticket-ic" aria-hidden="true">?</span><span>Tickets</span><b id="ticketBadge" hidden>0</b></button>
+          <button class="arc-btn a-casino" id="casinoBtn" type="button"><span class="arc-ic casino-ic" aria-hidden="true">×2</span><span>Casino</span></button>
+          <button class="arc-btn a-bourse" id="bourseBtn" type="button"><span class="arc-ic bourse-ic" aria-hidden="true">▲</span><span>Bourse</span></button>
+          <button class="arc-btn a-swap" id="swapBtn" type="button"><span class="arc-ic swap-ic" aria-hidden="true">⇄</span><span>Échanges</span><b id="swapBadge" hidden>0</b></button>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="d2-head"><span class="lab">Récepteurs D2 disponibles</span><span class="num" id="d2v">100 %</span></div>
+        <div class="meter" title="Le trait blanc marque le point d'équilibre"><i id="d2bar"></i><b id="d2tg"></b></div>
+        <p class="small" id="d2note"></p>
+        <button class="btn plane" id="plane" type="button" aria-pressed="false">Activer le mode avion</button>
+      </div>
+
+      <div class="panel detox">
+        <h3>Cure de désintox</h3>
+        <p id="detoxText">Remets tout à zéro contre des points de Sérénité. Chaque point ajoute 10 % à ta production pour toujours, et se dépense en sagesses. Tes succès, tes sagesses et ton chapitre restent.</p>
+        <div class="row"><span>Sérénité si tu pars maintenant</span><span class="num" id="dxg">0</span></div>
+        <div class="row sub"><span>Prochain point à</span><span class="num" id="dxn">–</span></div>
+        <label class="dif-row" for="difSel"><span>Difficulté de la partie suivante</span>
+          <select id="difSel" class="dif-sel">
+            <option value="0">🌴 Chill (prod ×2)</option>
+            <option value="1">Normal</option>
+            <option value="2">🔥 Hardcore (prod ÷2, Sérénité ×1,5)</option>
+            <option value="3">💀 Cauchemar (prod ÷4, Sérénité ×2,5)</option>
+          </select></label>
+        <button class="btn mint" id="detox" type="button" disabled>Partir en retraite</button>
+      </div>
+    </section>
+
+    <section class="col col-mid">
+      <nav class="tabs" role="tablist">
+        <button type="button" role="tab" data-tab="shop" aria-selected="true">Boutique</button>
+        <button type="button" role="tab" data-tab="stim" aria-selected="false">Stimulation <small id="stimCount">0/15</small></button>
+        <button type="button" role="tab" data-tab="cards" aria-selected="false">Cartes <small id="cardCount">0/49</small></button>
+        <button type="button" role="tab" data-tab="sag" aria-selected="false">Sagesses <small id="sagCount">0/12</small></button>
+        <button type="button" role="tab" data-tab="ach" aria-selected="false">Succès <small id="achCount">0/0</small></button>
+        <button type="button" role="tab" data-tab="stats" aria-selected="false">Stats</button>
+      </nav>
+
+      <div id="tab-shop" class="tabpane">
+        <div class="shop-head"><h2>Améliorations <small id="upcount"></small></h2></div>
+        <div class="ups" id="ups"></div>
+        <div class="shop-head">
+          <h2>Mécaniques d'engagement</h2>
+          <div class="seg" id="qty" role="group" aria-label="Quantité à acheter">
+            <button type="button" data-q="1" aria-pressed="true">×1</button>
+            <button type="button" data-q="10" aria-pressed="false">×10</button>
+            <button type="button" data-q="100" aria-pressed="false">×100</button>
+          </div>
+        </div>
+        <div class="gens" id="gens"></div>
+      </div>
+
+      <div id="tab-stim" class="tabpane" hidden>
+        <p class="small">Chaque stimulation ajoute du chaos à ton écran et <b>+10 %</b> à ta production, pour toujours (même après une cure de désintox). Bonus actuel : <b id="stimBonus">+0 %</b>. Si ça devient trop, tu peux tout masquer dans les Réglages : le bonus reste.</p>
+        <div class="st-list" id="stimList"></div>
+      </div>
+
+      <div id="tab-cards" class="tabpane" hidden>
+        <p class="small">Chaque carte augmente ta production, et les doublons la font monter de niveau. Une collection complète ajoute encore un bonus. Bonus actuel : <b id="cardBonus">+0 %</b>. Gagne des coffres en écrasant des objets, en finissant des pop-it et en montant de niveau.</p>
+        <h3 class="cs-h">Collections</h3>
+        <div class="cs-list" id="setList"></div>
+        <h3 class="cs-h">Fusion</h3>
+        <p class="small fu-note">5 cartes en trop d'une rareté donnent 1 carte de la rareté suivante, souvent une que tu n'as pas encore. Le dernier exemplaire de chaque carte n'est jamais utilisé.</p>
+        <div class="fu-row" id="fuseRow"></div>
+        <h3 class="cs-h">Toutes les cartes</h3>
+        <div class="cards" id="cards"></div>
+      </div>
+
+      <div id="tab-sag" class="tabpane" hidden>
+        <div class="sag-top">
+          <div class="kpi"><span class="lab">Sérénité à dépenser</span><span class="num" id="sagAvail">0</span><span class="unit" id="sagTot">sur 0 gagnés</span></div>
+          <p class="small" id="sagNote"></p>
+        </div>
+        <div class="ups sags" id="sags"></div>
+      </div>
+
+      <div id="tab-ach" class="tabpane" hidden>
+        <p class="small">Chaque succès ajoute <b>+1 %</b> à ta production, pour toujours.</p>
+        <div class="achs" id="achs"></div>
+      </div>
+
+      <div id="tab-stats" class="tabpane" hidden>
+        <table class="stats"><tbody id="stats"></tbody></table>
+        <button class="linkbtn" id="wipe" type="button">Effacer ma progression sur ce compte</button>
+      </div>
+    </section>
+
+    <aside class="col col-right">
+      <div class="panel st-wall" id="stWall" hidden>
+        <div class="board-head"><h3>Mur de stimulation</h3><span class="st-live"><i></i>EN DIRECT</span></div>
+        <div class="st-grid">
+          <div class="st-tile tall" id="st-subway" hidden><canvas></canvas></div>
+          <div class="st-tile tall st-chat" id="st-chat" hidden><div class="st-chat-head"><i></i>LIVE<span class="st-vw">👁 <span id="stViewers">1 200</span></span></div><ul id="stChatList"></ul></div>
+          <div class="st-tile tall st-novid" id="st-parkour" hidden><span class="st-off">📡 La vidéo revient avec internet</span></div>
+          <div class="st-tile tall st-barsbox" id="st-bars" hidden><div class="st-bars" id="stBars"></div></div>
+          <div class="st-tile w169" id="st-press" hidden><canvas></canvas></div>
+          <div class="st-tile w169" id="st-sand" hidden><canvas></canvas></div>
+          <div class="st-tile w169" id="st-wash" hidden><canvas></canvas></div>
+          <div class="st-tile sq" id="st-spinner" hidden><canvas></canvas></div>
+          <div class="st-tile sq" id="st-slime" hidden><canvas></canvas></div>
+          <div class="st-tile wide st-subs" id="st-subs" hidden><span class="st-sublab">▶ ABONNÉS EN DIRECT</span><div class="st-subn" id="stSubN"></div><b class="st-submsg" id="stSubMsg"></b></div>
+        </div>
+      </div>
+      <div class="panel so-panel" id="soPanel">
+        <div class="board-head"><h3 id="soSeason">SAISON</h3><span class="unit" id="soSeasonEnd"></span></div>
+        <p class="so-me" id="soMe"></p>
+        <div class="so-card so-daily" id="soDaily">
+          <div class="so-h"><b>🎯 DÉFI DU JOUR</b><span id="soDayEnd"></span></div>
+          <p class="so-t" id="soDailyName"></p>
+          <div class="so-bar"><i id="soDailyBar"></i></div>
+          <small id="soDailyInfo"></small>
+        </div>
+        <div class="so-card so-event" id="soEvent">
+          <div class="so-h"><b id="soEvTitle">ÉVÉNEMENT DU WEEK-END</b><span id="soEvEnd"></span></div>
+          <p class="so-t" id="soEvDesc"></p>
+          <div id="soBoss" hidden>
+            <div class="so-bar boss"><i id="soBossBar"></i><span class="so-tk" style="left:25%"></span><span class="so-tk" style="left:50%"></span><span class="so-tk" style="left:75%"></span></div>
+            <small id="soBossInfo"></small>
+          </div>
+        </div>
+        <div class="so-card so-clan">
+          <div class="so-h"><b>🛡️ CLAN</b></div>
+          <p class="so-t" id="soClanTxt"></p>
+          <form class="lb-add" id="clanForm" autocomplete="off">
+            <input id="clanName" maxlength="20" placeholder="Nom du clan" aria-label="Nom du clan à créer ou rejoindre" spellcheck="false">
+            <button class="btn" type="submit">REJOINDRE</button>
+          </form>
+          <p class="auth-msg" id="clanMsg" role="status"></p>
+          <button class="linkbtn" id="clanLeave" type="button" hidden>Quitter le clan</button>
+        </div>
+      </div>
+      <div class="panel quests-panel">
+        <div class="board-head"><h3>Quêtes</h3><span class="unit">récompenses garanties</span></div>
+        <ul class="duels" id="duels" hidden></ul>
+        <ul class="quests" id="quests"></ul>
+      </div>
+      <div class="panel board-panel">
+        <div class="board-head"><h3>Classement</h3><span class="netst" id="netst">connexion…</span></div>
+        <div class="seg lb-scope" id="boardScope" role="group" aria-label="Classement des amis ou mondial">
+          <button type="button" data-s="fr" aria-pressed="true">★ Amis</button>
+          <button type="button" data-s="world" aria-pressed="false">🌍 Monde</button>
+          <button type="button" data-s="clan" aria-pressed="false">🛡️ Clans</button>
+        </div>
+        <div class="seg" id="sortby" role="group" aria-label="Trier le classement">
+          <button type="button" data-k="sp" aria-pressed="false">Saison</button>
+          <button type="button" data-k="dv" aria-pressed="false">Défi</button>
+          <button type="button" data-k="life" aria-pressed="true">Total</button>
+          <button type="button" data-k="dps" aria-pressed="false">Prod/s</button>
+          <button type="button" data-k="ser" aria-pressed="false">Sérénité</button>
+        </div>
+        <p class="lb-info" id="boardInfo"></p>
+        <ol class="board" id="board"></ol>
+        <form class="lb-add" id="frForm" autocomplete="off">
+          <input id="frName" maxlength="16" placeholder="Pseudo d'un ami" aria-label="Pseudo de l'ami à ajouter" spellcheck="false">
+          <button class="btn" type="submit">+ AMI</button>
+        </form>
+        <p class="auth-msg" id="frMsg" role="status"></p>
+      </div>
+      <div class="panel">
+        <h3 class="feed-h">Fil des amis</h3>
+        <ul class="feed" id="feed"></ul>
+      </div>
+    </aside>
+  </main>
+  <!-- Navigation sur téléphone : une seule colonne à la fois -->
+  <nav class="mnav" id="mnav" aria-label="Navigation">
+    <button type="button" data-view="play" aria-pressed="true"><span aria-hidden="true">🎮</span>Jouer</button>
+    <button type="button" data-view="shop" aria-pressed="false"><span aria-hidden="true">🛒</span>Améliorer</button>
+    <button type="button" data-view="live" aria-pressed="false"><span aria-hidden="true">🏆</span>Potes &amp; live</button>
+  </nav>
+</div>
+
+<!-- ===== Surcouches ===== -->
+<canvas id="fx" class="fx" aria-hidden="true"></canvas>
+
+<div id="titlecard" class="titlecard" hidden>
+  <div class="tc-inner">
+    <span class="tc-num" id="tcNum">CHAPITRE II</span>
+    <span class="tc-name glitch" id="tcName" data-text="">La Licorne</span>
+    <span class="tc-line" id="tcLine"></span>
+  </div>
+</div>
+
+<div id="eventModal" class="modal" hidden>
+  <div class="card event-card" role="dialog" aria-modal="true" aria-labelledby="evTitle">
+    <div class="ev-top"><span class="ev-ic" id="evIc"></span><span class="lab">Événement</span></div>
+    <h2 id="evTitle"></h2>
+    <p id="evText"></p>
+    <div class="ev-choices">
+      <button type="button" class="choice" id="evA"><b></b><small></small></button>
+      <button type="button" class="choice" id="evB"><b></b><small></small></button>
+    </div>
+  </div>
+</div>
+
+<div id="stillModal" class="modal" hidden>
+  <div class="card still-card" role="dialog" aria-modal="true" aria-labelledby="stillT">
+    <h2 id="stillT">Êtes-vous toujours là ?</h2>
+    <p>Tes mécaniques tournent toujours. On voulait juste vérifier que tu regardais encore.</p>
+    <div class="ev-choices">
+      <button type="button" class="btn coral" id="stillYes">Continuer à regarder</button>
+      <button type="button" class="btn" id="stillNo">Retour au menu</button>
+    </div>
+  </div>
+</div>
+
+<div id="welcome" class="modal" hidden>
+  <div class="card" role="dialog" aria-modal="true" aria-labelledby="wT">
+    <span class="lab">Pendant ton absence</span>
+    <h2 id="wT">Tes mécaniques n'ont pas dormi</h2>
+    <p id="wText"></p>
+    <button type="button" class="btn coral" id="wOk">Encaisser</button>
+  </div>
+</div>
+
+<div id="settings" class="modal" hidden>
+  <div class="card settings-card" role="dialog" aria-modal="true" aria-labelledby="sT">
+    <h2 id="sT">Réglages</h2>
+    <label class="check"><input type="checkbox" id="optSfx" checked> Bruitages</label>
+    <label class="check"><input type="checkbox" id="optMusic" checked> Musique d'ambiance</label>
+    <label class="range"><span>Volume</span><input type="range" id="optVol" min="0" max="100" value="70"></label>
+    <label class="check"><input type="checkbox" id="optLite"> Effets visuels réduits</label>
+    <label class="check"><input type="checkbox" id="optStim" checked> Stimulations à l'écran (logo DVD, gameplay, notifications…)</label>
+    <label class="check"><input type="checkbox" id="optVideo" checked> Vraies vidéos dans le mur (sinon des animations dessinées)</label>
+    <div class="install-box" id="installBox" hidden>
+      <b>📱 Installer le jeu sur ton téléphone</b>
+      <p id="installTxt"></p>
+      <button class="btn mint" id="installBtn" type="button" hidden>Installer l'application</button>
+    </div>
+    <div class="st-row"><button type="button" class="btn" id="openSave">Sauvegarde : exporter / importer</button><button type="button" class="btn" id="openGuide">Comment jouer</button></div>
+    <p class="small" id="accInfo"></p>
+    <p class="small st-ver"><span id="verInfo"></span> <button type="button" class="linkbtn" id="copyErr" hidden>Copier le rapport d'erreurs</button></p>
+    <div class="ev-choices">
+      <button type="button" class="btn" id="logout">Se déconnecter</button>
+      <button type="button" class="btn coral" id="sClose">Fermer</button>
+    </div>
+  </div>
+</div>
+
+<div id="chestModal" class="chest-modal" hidden>
+  <div class="cm-rays" aria-hidden="true"></div>
+  <div class="cm-title" id="cmTitle"></div>
+  <div class="cm-stage" id="cmStage"></div>
+  <div class="cm-summary" id="cmSummary" hidden></div>
+  <div class="cm-count" id="cmCount"></div>
+  <div class="cm-hint" id="cmHint">Clique pour ouvrir</div>
+  <button type="button" class="btn-hero" id="cmClose" hidden>Continuer</button>
+</div>
+<div id="wheelModal" class="modal" hidden>
+  <div class="card wheel-card" role="dialog" aria-modal="true" aria-labelledby="wheelT">
+    <h2 id="wheelT">Roue de la dopamine</h2>
+    <div class="wheel-wrap"><canvas id="wheelCv"></canvas><div class="wheel-pin" id="wheelPin"></div></div>
+    <p class="wheel-res" id="wheelRes" aria-live="polite"></p>
+    <div class="ev-choices">
+      <button type="button" class="btn-hero" id="wheelSpin">LANCER</button>
+      <button type="button" class="btn" id="wheelClose">Fermer</button>
+    </div>
+    <p class="small" id="wheelNext" style="margin:0;text-align:center"></p>
+  </div>
+</div>
+<div id="dailyModal" class="modal" hidden>
+  <div class="card daily-card" role="dialog" aria-modal="true" aria-labelledby="dailyT">
+    <span class="lab">Connexion quotidienne</span>
+    <h2 id="dailyT">Ton cadeau du jour</h2>
+    <p id="dailyStreak"></p>
+    <div class="ddays" id="dailyDays"></div>
+    <button type="button" class="btn-hero" id="dailyClaim">RÉCUPÉRER</button>
+  </div>
+</div>
+<div id="slotModal" class="modal" hidden>
+  <div class="card slot-card" role="dialog" aria-modal="true" aria-labelledby="slotT">
+    <h2 id="slotT">Le Bandit Manchot</h2>
+    <div class="slot-machine" id="slotMachine">
+      <div class="reels" id="slotReels">
+        <div class="reel"><div class="strip"></div></div>
+        <div class="reel"><div class="strip"></div></div>
+        <div class="reel"><div class="strip"></div></div>
+      </div>
+      <div class="payline" aria-hidden="true"></div>
+    </div>
+    <p class="slot-res" id="slotRes" aria-live="polite"></p>
+    <div class="seg bets" id="slotBets" role="group" aria-label="Mise"></div>
+    <button type="button" class="btn-hero" id="slotSpin">JOUER</button>
+    <details class="paytable"><summary>Table des gains</summary><div id="slotPay"></div></details>
+    <button type="button" class="btn" id="slotClose">Fermer</button>
+  </div>
+</div>
+<div id="scratchModal" class="modal" hidden>
+  <div class="card scratch-card" role="dialog" aria-modal="true" aria-labelledby="scT">
+    <h2 id="scT">Ticket à gratter</h2>
+    <p class="small" style="margin:0">Trois images identiques : tu gagnes le lot correspondant.</p>
+    <div class="scratch-legend" id="scratchLegend"></div>
+    <div class="scratch-area"><div class="scratch-grid" id="scratchGrid"></div><canvas id="scratchCv"></canvas></div>
+    <p class="slot-res" id="scratchRes" aria-live="polite"></p>
+    <button type="button" class="btn-hero" id="scratchDone" hidden>Continuer</button>
+  </div>
+</div>
+<div id="raceModal" class="modal" hidden>
+  <div class="card race-card" role="dialog" aria-modal="true" aria-labelledby="raceTitle">
+    <span class="lab">Duel de taps</span>
+    <h2 id="raceTitle"></h2>
+    <p id="raceGoal"></p>
+    <div class="race-count" id="raceCount">3</div>
+    <div class="race-track"><i id="raceBar"></i></div>
+    <button type="button" class="race-btn" id="raceBtn" disabled></button>
+    <p class="race-res" id="raceRes" aria-live="polite"></p>
+    <div id="raceEnd" hidden><button type="button" class="btn-hero" id="raceClose">Continuer</button></div>
+  </div>
+</div>
+<div id="profModal" class="modal" hidden>
+  <div class="card pf-card" role="dialog" aria-modal="true" aria-label="Profil du joueur">
+    <div id="pfBody"></div>
+    <button type="button" class="btn pf-close" id="pfClose">Fermer</button>
+  </div>
+</div>
+
+<div id="casinoModal" class="modal" hidden>
+  <div class="card casino-card" role="dialog" aria-modal="true" aria-labelledby="casT">
+    <div class="cas-top"><h2 id="casT">Casino Dopamine</h2><button type="button" class="btn" id="casClose">Fermer</button></div>
+    <nav class="cas-tabs" id="casTabs">
+      <button type="button" data-g="crash" aria-selected="true">Fusée</button>
+      <button type="button" data-g="plinko" aria-selected="false">Plinko</button>
+      <button type="button" data-g="mines" aria-selected="false">Mines</button>
+      <button type="button" data-g="coin" aria-selected="false">Pile ou face</button>
+      <button type="button" data-g="roulette" aria-selected="false">Roulette</button>
+      <button type="button" data-g="blackjack" aria-selected="false">Blackjack</button>
+      <button type="button" data-g="poker" aria-selected="false">Poker</button>
+      <button type="button" data-g="tower" aria-selected="false">La Tour</button>
+      <button type="button" data-g="dice" aria-selected="false">Dés</button>
+      <button type="button" data-g="hilo" aria-selected="false">Plus ou Moins</button>
+    </nav>
+    <div class="cas-bar"><span class="lab">Mise</span><div class="seg" id="casBets" role="group" aria-label="Mise"></div><span class="cas-bank">Banque : <b id="casBank">0</b> nmol</span></div>
+    <section id="g-crash" class="cas-game">
+      <div class="crash-wrap"><canvas id="crashCv"></canvas><div class="crash-mult" id="crashMult">×1,00</div></div>
+      <button type="button" class="btn-hero" id="crashBtn">DÉCOLLER</button>
+      <div class="crash-hist" id="crashHist"></div>
+    </section>
+    <section id="g-plinko" class="cas-game" hidden>
+      <div class="plinko-wrap"><canvas id="plinkoCv"></canvas></div>
+      <button type="button" class="btn-hero" id="plinkoBtn">LÂCHER UNE BILLE</button>
+    </section>
+    <section id="g-mines" class="cas-game" hidden>
+      <div class="mines-opts"><span class="lab">Bombes</span><div class="seg" id="minesN" role="group" aria-label="Nombre de bombes"><button type="button" data-n="1">1</button><button type="button" data-n="3">3</button><button type="button" data-n="5">5</button><button type="button" data-n="10">10</button></div><small id="minesNext"></small></div>
+      <div class="mines-grid" id="minesGrid"></div>
+      <button type="button" class="btn-hero" id="minesBtn">MISER</button>
+    </section>
+    <section id="g-coin" class="cas-game" hidden>
+      <div class="coin-wrap"><div class="coin" id="coin"><div class="coin-face heads"></div><div class="coin-face tails"></div></div></div>
+      <div class="coin-pick"><button type="button" class="btn" id="coinH">PILE</button><button type="button" class="btn" id="coinT">FACE</button></div>
+      <p class="coin-streak" id="coinStreak"></p>
+      <button type="button" class="btn-hero" id="coinCash" hidden>ENCAISSER</button>
+    </section>
+    <section id="g-roulette" class="cas-game" hidden>
+      <div class="rou-top"><div class="rou-wheel"><canvas id="rouCv"></canvas><div class="rou-result" id="rouResult"></div></div></div>
+      <div class="rou-hist" id="rouHist"></div>
+      <div class="felt" style="padding:4px"><div class="rou-table" id="rouTable"></div></div>
+      <p class="rou-info" id="rouInfo"></p>
+      <button type="button" class="btn-hero" id="rouBtn">LANCER LA BILLE</button>
+    </section>
+    <section id="g-blackjack" class="cas-game" hidden>
+      <div class="felt">
+        <div class="bj-row"><span class="bj-lab">Croupier<b id="bjDT"></b></span><div class="hand" id="bjDealer"></div></div>
+        <div class="bj-sep">BLACKJACK PAIE 3 CONTRE 2 · LE CROUPIER RESTE À 17</div>
+        <div class="bj-row"><span class="bj-lab">Toi<b id="bjPT"></b></span><div class="hand" id="bjPlayer"></div></div>
+      </div>
+      <div class="bj-actions">
+        <button type="button" class="btn-hero" id="bjDeal">DISTRIBUER</button>
+        <button type="button" class="btn" id="bjHit" hidden>TIRER</button>
+        <button type="button" class="btn" id="bjStand" hidden>RESTER</button>
+        <button type="button" class="btn" id="bjDouble" hidden>DOUBLER</button>
+      </div>
+    </section>
+    <section id="g-poker" class="cas-game" hidden>
+      <div class="felt"><div class="pk-hand" id="pkHand"></div><p class="pk-hint" id="pkHint"></p></div>
+      <button type="button" class="btn-hero" id="pkBtn">DISTRIBUER</button>
+      <table class="pk-pay"><tbody id="pkPay"></tbody></table>
+    </section>
+    <section id="g-tower" class="cas-game" hidden>
+      <div class="tw-wrap"><div class="tw-crown">SOMMET · ×13,97</div><div class="tw-rows" id="twRows"></div></div>
+      <button type="button" class="btn-hero" id="twBtn">GRIMPER</button>
+    </section>
+    <section id="g-dice" class="cas-game" hidden>
+      <div class="dice-num" id="diceNum">00,00</div>
+      <div class="dice-bar" id="diceBar"><span class="dice-mark" id="diceMark"></span></div>
+      <input class="dice-slider" id="diceT" type="range" min="5" max="95" value="70" aria-label="Seuil de victoire">
+      <p class="dice-info" id="diceInfo"></p>
+      <div class="dice-actions"><button type="button" class="btn-hero" id="diceBtn">LANCER</button><button type="button" class="btn" id="diceAuto">AUTO ×10</button></div>
+    </section>
+    <section id="g-hilo" class="cas-game" hidden>
+      <div class="felt hl-felt"><div class="hl-card" id="hlCard"></div><div class="hl-hist" id="hlHist"></div></div>
+      <div class="hl-acts"><button type="button" class="btn hl-up" id="hlUp" hidden></button><button type="button" class="btn hl-down" id="hlDown" hidden></button></div>
+      <p class="dice-info" id="hlInfo"></p>
+      <button type="button" class="btn-hero" id="hlBtn">JOUER</button>
+    </section>    <p class="slot-res" id="casRes" aria-live="polite"></p>
+  </div>
+</div>
+<div id="bourseModal" class="modal" hidden>
+  <div class="card bourse-card" role="dialog" aria-modal="true" aria-labelledby="bxT">
+    <div class="cas-top"><h2 id="bxT">Bourse Dopamine</h2><button type="button" class="btn" id="bxClose">Fermer</button></div>
+    <p class="bx-news" id="bxNews">Le marché est ouvert. Les cours sont les mêmes pour tous tes potes.</p>
+    <div class="bx-main">
+      <div class="bx-list" id="bxList"></div>
+      <div class="bx-chart-wrap">
+        <div class="bx-head"><span id="bxSym"></span><b id="bxPrice"></b><span class="bx-chg" id="bxChg"></span></div>
+        <canvas id="bxChart"></canvas>
+      </div>
+    </div>
+    <div class="cas-bar"><span class="lab">Mise</span><div class="seg" id="bxBets" role="group" aria-label="Mise"></div><span class="lab">Levier</span><div class="seg" id="bxLevs" role="group" aria-label="Levier"></div><span class="cas-bank">Banque : <b id="bxBank">0</b> nmol</span></div>
+    <div class="bx-go"><button type="button" class="btn-hero bx-up" id="bxUp">▲ HAUSSE</button><button type="button" class="btn-hero bx-down" id="bxDown">▼ BAISSE</button></div>
+    <p class="slot-res" id="bxRes" aria-live="polite"></p>
+    <div class="board-head"><h3>Mes positions</h3><span class="unit" id="bxTot"></span></div>
+    <ul class="bx-pos" id="bxPos"></ul>
+  </div>
+</div>
+<div id="swapModal" class="modal" hidden>
+  <div class="card swap-card" role="dialog" aria-modal="true" aria-labelledby="swT">
+    <div class="cas-top"><h2 id="swT">Échange de cartes</h2><button type="button" class="btn" id="swClose">Fermer</button></div>
+    <p class="small">Échange tes doublons avec tes potes. La carte que tu proposes est mise de côté : elle te revient si l'offre est refusée, annulée ou sans réponse après 12 h.</p>
+    <h3 class="sw-h">Propositions reçues</h3>
+    <ul class="sw-list" id="swIn"></ul>
+    <h3 class="sw-h">Proposer un échange</h3>
+    <div class="sw-friends" id="swFriends"></div>
+    <div class="sw-cols">
+      <div><span class="lab">Tu donnes (tes doublons)</span><div class="sw-picks" id="swGive"></div></div>
+      <div><span class="lab">Tu reçois (ses doublons)</span><div class="sw-picks" id="swWant"></div></div>
+    </div>
+    <button type="button" class="btn-hero" id="swSend" disabled>PROPOSER L'ÉCHANGE</button>
+    <h3 class="sw-h">Mes offres envoyées</h3>
+    <ul class="sw-list" id="swOut"></ul>
+  </div>
+</div>
+<div id="passModal" class="modal" hidden>
+  <div class="card ps-card" role="dialog" aria-modal="true" aria-labelledby="psT">
+    <div class="cas-top"><h2 id="psT">Pass Dopamine</h2><button type="button" class="btn" id="psClose">Fermer</button></div>
+    <p class="small" id="psInfo"></p>
+    <div class="ps-prog"><i id="psFill"></i></div>
+    <div class="ps-grid" id="psGrid"></div>
+    <p class="small" id="psBonus"></p>
+    <button type="button" class="btn-hero" id="psAll">TOUT RÉCUPÉRER</button>
+  </div>
+</div>
+<div id="saveModal" class="modal" hidden>
+  <div class="card sv-card" role="dialog" aria-modal="true" aria-labelledby="svT">
+    <div class="cas-top"><h2 id="svT">Sauvegarde</h2><button type="button" class="btn" id="svClose">Fermer</button></div>
+    <section class="sv-sec" id="svExport">
+      <h3 class="sv-h">Exporter ma partie</h3>
+      <p class="small">Garde ce code en lieu sûr (un fichier texte, un message à toi-même). Avec ton mot de passe, il permet de retrouver ton compte et ta partie sur n'importe quel PC. Sans le mot de passe, il est illisible.</p>
+      <textarea id="svCode" rows="3" readonly spellcheck="false" aria-label="Code de sauvegarde"></textarea>
+      <div class="st-row"><button type="button" class="btn coral" id="svMake">Créer le code</button><button type="button" class="btn" id="svCopy" disabled>Copier</button></div>
+    </section>
+    <section class="sv-sec">
+      <h3 class="sv-h">Importer une partie</h3>
+      <p class="small">Colle un code de sauvegarde et le mot de passe de ce compte. La partie du code remplace celle de ce PC pour ce compte.</p>
+      <textarea id="svIn" rows="3" spellcheck="false" placeholder="DT1.…" aria-label="Code de sauvegarde à importer"></textarea>
+      <label for="svPass" class="sv-lab">Mot de passe du compte</label>
+      <input id="svPass" type="password" autocomplete="current-password">
+      <button type="button" class="btn-hero" id="svImport">IMPORTER</button>
+      <p class="auth-msg" id="svMsg" role="status"></p>
+    </section>
+  </div>
+</div>
+<div id="guideModal" class="modal" hidden>
+  <div class="card gd-card" role="dialog" aria-modal="true" aria-labelledby="gdT">
+    <div class="cas-top"><h2 id="gdT">Comment jouer</h2><button type="button" class="btn" id="gdClose">Fermer</button></div>
+    <ol class="gd-list">
+      <li><b>Tape la presse.</b> Chaque tap produit de la dopamine, écrase l'objet sur le tapis et fait éclater une bulle du pop-it. Tape vite pour monter le combo.</li>
+      <li><b>Achète des mécaniques</b> dans la Boutique. Elles produisent toutes seules, même quand le jeu est fermé (à mi-régime, 8 h maximum).</li>
+      <li><b>Surveille tes récepteurs D2.</b> Plus tu produis, plus ils s'usent et plus ton efficacité baisse. Le mode avion les fait remonter.</li>
+      <li><b>Remplis les jauges.</b> La Hype multiplie tout pendant quelques secondes. La Méga-Presse (bouton rond sur la presse) écrase tout d'un coup.</li>
+      <li><b>Ouvre des coffres</b> pour collectionner les cartes : chacune augmente ta production. Complète des collections et fusionne tes cartes en trop.</li>
+      <li><b>Récupère tes récompenses</b> : Pass Dopamine, quêtes, roue, cadeau du jour, notifications dorées et boss.</li>
+      <li><b>Pars en cure de désintox</b> quand ta progression ralentit : tu repars de zéro, mais la Sérénité gagnée augmente ta production pour toujours et achète des sagesses. C'est aussi là que tu changes de difficulté (🌴 Chill, Normal, 🔥 Hardcore, 💀 Cauchemar).</li>
+      <li><b>Joue avec tes amis</b> : ajoute-les avec leur pseudo (sous le classement) ou avec ☆, puis compare-toi dans le classement ★ Amis ou 🌍 Monde. Duels de taps, emotes et échanges de cartes. Les scores trafiqués sont repérés et mis à part.</li>
+      <li><b>Chaque semaine, une saison</b> : chaque XP compte, le podium gagne une médaille et un coffre. Chaque jour, un <b>défi</b> commun à tous. Le week-end, <b>production ×2 ou pluie de coffres</b> et un <b>boss mondial</b> à abattre ensemble. Crée ou rejoins un <b>clan</b> avec tes potes, et touche un joueur au classement pour voir son profil.</li>
+      <li><b>Ta partie est enregistrée sur ce PC.</b> Pour ne jamais la perdre, exporte un code de sauvegarde dans les Réglages.</li>
+    </ol>
+    <button type="button" class="btn-hero" id="gdGo">C'EST PARTI !</button>
+  </div>
+</div>
+<div id="rainLayer" class="rain-layer" hidden></div>
+<div id="banner" class="banner" hidden><span id="bannerTop">NIVEAU</span><b id="bannerBig">2</b><span id="bannerSub"></span></div>
+<div id="flash" class="flash" hidden></div>
+<div class="meme" id="meme" hidden><div class="meme-face" id="memeFace"></div><b class="meme-cap" id="memeCap"></b></div>
+<div class="trophies" id="trophies" aria-live="polite"></div>
+<div class="toasts" id="toasts" aria-live="polite"></div>
+
+<!-- Stimulations : rien n'est cliquable, tout traverse les clics -->
+<div class="st-rgb" id="stRgb" hidden aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+<div class="st-dvd" id="stDvd" hidden aria-hidden="true"><svg viewBox="0 0 130 64"><text x="65" y="33" text-anchor="middle" font-family="Bungee, Impact, sans-serif" font-size="34" fill="currentColor">DOPA</text><ellipse cx="65" cy="50" rx="52" ry="10" fill="currentColor"/><text x="65" y="54" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" font-weight="700" fill="#140B1F">V I D É O</text></svg></div>
+<div class="st-notifs" id="stNotifs" aria-hidden="true"></div>
+<div class="st-meme" id="stMeme" hidden aria-hidden="true"></div>
+<div class="st-owl" id="stOwl" hidden aria-hidden="true">
+  <svg viewBox="0 0 100 100"><g stroke="#1B1029" stroke-width="4" stroke-linejoin="round"><path d="M18 30 L28 6 L42 22 Q50 18 58 22 L72 6 L82 30 Q92 55 80 80 Q66 96 50 96 Q34 96 20 80 Q8 55 18 30Z" fill="#8E5BD8"/><ellipse cx="50" cy="72" rx="20" ry="18" fill="#E7D7FF"/><circle cx="36" cy="44" r="15" fill="#fff"/><circle cx="64" cy="44" r="15" fill="#fff"/><circle cx="38" cy="46" r="7" fill="#1B1029"/><circle cx="62" cy="46" r="7" fill="#1B1029"/><path d="M44 56 L50 66 L56 56Z" fill="#FF9F1C"/></g></svg>
+  <p id="stOwlTxt"></p>
+</div>
+<div class="st-grass" id="stGrass" hidden>
+  <div class="st-sun"></div><div class="st-field"></div>
+  <div class="st-gtxt"><b>Tu as touché de l'herbe.</b><span>Ça fait du bien, non ? Respire un coup. Le jeu t'attend.</span>
+    <button type="button" class="btn-hero" id="stGrassBtn" hidden>Retourner à la dopamine</button></div>
+</div>
+
+<script src="version.js"></script>
+<script src="util.js"></script>
+<script src="data.js"></script>
+<script src="audio.js"></script>
+<script src="stage.js"></script>
+<script src="memes/index.js"></script>
+<script src="cards.js"></script>
+<script src="extras.js"></script>
+<script src="games.js"></script>
+<script src="casino.js"></script>
+<script src="casino2.js"></script>
+<script src="bourse.js"></script>
+<script src="echange.js"></script>
+<script src="pass.js"></script>
+<script src="videos/index.js"></script>
+<script src="stim.js"></script>
+<script src="net.js"></script>
+<script src="social.js"></script>
+<script src="game.js"></script>
+</body>
+</html>
